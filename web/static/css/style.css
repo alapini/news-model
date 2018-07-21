@@ -1,0 +1,26 @@
+
+.btn-xlarge {
+    padding: 18px 28px;
+    font-size: 48px; 
+    line-height: normal;
+    -webkit-border-radius: 8px;
+       -moz-border-radius: 8px;
+            border-radius: 8px;
+}
+
+.btn-topic {
+    padding: 12px;
+    margin: 18px 8px;
+    width: 330px;
+    font-size: 14px;
+}
+
+.btn-topic-inline {
+    padding: 12px;
+    font-size: 14px;
+}
+
+.boxed {
+    border-width: 1px;
+    border-color: gray;
+}

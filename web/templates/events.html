@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <title>Tweet Labeling</title>
+</head>
+<body>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-12" style="height: 40px;"></div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <blockquote class="blockquote">
+                <h1>Tweet Labeling System</h1>
+            </blockquote>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12" style="height: 20px;"></div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="alert alert-primary">
+                <h2 class="alert-heading">Descripción de la tarea</h2>
+                <p>...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12" style="height: 20px;"></div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="alert alert-info">
+                <h2 class="alert-heading">Eventos</h2>
+                <dl>
+                {% for event in events %}
+                    <dt>{{ event.human_name }}</dt>
+                    <dd>{{ event.description }}</dd>                    
+                    <hr>
+                {% endfor %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="alert alert-warning">
+                <h2 class="alert-heading">Comenzar la tarea</h2>
+                <form action="{{ url_for('init') }}" method="post">
+                    <div class="form-group">
+                        <label for="nombre">Ingresa tu nombre</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" placeholder="Tu nombre" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eligeEvento">Elige un evento a evaluar:</label>
+                        <select class="form-control" id="eligeEvento" name="eligeEvento">
+                            {% for event in events %}
+                            <option value="{{ event._id }}">{{ event.human_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-warning">Ir a la evaluación</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+        integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"
+        integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
+        crossorigin="anonymous"></script>
+</body>
+</html>

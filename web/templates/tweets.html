@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <title>Tweet Labeling</title>
+
+</head>
+<body>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-12" style="height: 10px;"></div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div id="tweet" tweetID="{{ tweet.tweet_id }}"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12" style="height: 25px;"></div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12 text-center">
+            <p class="text-center">Por favor, haz click en la opción que mejor describe al texto de arriba o ingresa una nueva opción</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12" style="height: 10px;"></div>
+    </div>
+
+    <form action="{{ url_for('label', event_id=event_id, representative_id=representative_id, tweet_idx=tweet_idx, original_topic_id=original_topic_id) }}" method="post">
+        <div class="row">
+            <div class="col-lg-12 text-center">
+                <!-- <a role="button" href="/event/{{ event_id }}/label/?representative_id=
+                    {{ representative_id }}&topic_id={{ non_rel._id }}&tweet_idx={{ tweet_idx }}&
+                    original_topic_id={{ original_topic_id }}" class="btn btn-danger btn-lg btn-topic">No es relevante o informativo</a>-->
+                <button type="submit" class="btn btn-danger btn-topic" name="topic_id" value="{{ non_rel._id }}">No relevante o no informativo</button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-12 text-center">
+            {% for topic in all_topics %}
+                <button type="submit" class="btn btn-warning btn-topic" name="topic_id" value="{{ topic._id }}">{{ topic.topic_name }}</button>
+                <!-- <a role="button" href="/event/{{ event_id }}/label/?representative_id={{ representative_id }}
+                    &topic_id={{ topic._id }}&tweet_idx={{ tweet_idx }}&original_topic_id={{ original_topic_id }}"
+                class="btn btn-warning btn-lg btn-topic">{{ topic.topic_name }}</a> -->
+            {% endfor %}
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-12" style="height: 15px;"></div>
+        </div>
+
+        <div class="form-row">
+            <div class="col-lg-4 col-lg-offset-4"></div>
+            <div class="col-lg-4 text-center input-group">
+                <input type="text" class="form-control" name="topic_text" placeholder="O ingresa un nuevo tópico">
+                <button type="submit" name="topic_id" value="otro" class="input-group-addon btn btn-warning btn-topic-inline">Enviar</button>
+            </div>
+            <div class="col-lg-4 col-lg-offset-4"></div>
+        </div>
+    </form>
+
+    <div class="row">
+        <div class="col-lg-12" style="height: 20px;"></div>
+    </div>
+
+    <!--<div class="row">-->
+        <!--<div class="col-12 text-center">-->
+            <!--<small class="text-center">Llevas X tweets etiquetados</small>-->
+        <!--</div>-->
+    <!--</div>-->
+
+<!--
+
+    <div class="row">
+        <div class="col-12 text-center">
+            <button type="button" class="btn btn-success btn-xlarge">✓</button>
+            &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+            <button type="button" class="btn btn-danger btn-xlarge">✗</button>
+        </div>
+    </div>
+-->
+</div>
+
+
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+        integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"
+        integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
+        crossorigin="anonymous"></script>
+
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+<script>
+
+    function replaceURLWithHTMLLinks(text) {
+        var exp = /(\b(http|ftp|https):\/\/([\w-]+\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?)/ig;
+        return text.replace(exp, "<a href='$1'>$1</a>"); 
+    }
+
+    function toDate(datestr) {
+        date = new Date(datestr);
+        return date.toString();
+    }
+
+    function displayTweet(text, date) {
+        return `<div class="card" style="width: 500px; margin: 0 auto;">
+                    <div class="card-body">
+                        <h5 class="card-title" style="font-weight: 700; font-family: normal normal 16px/1.4 Helvetica,Roboto,'Segoe UI',Calibri,sans-serif !important;"><img src="https://78.media.tumblr.com/avatar_9f8ac1d44547_128.pnj" width="36" height="36" class="rounded-circle"> Twitter user</h5>
+                        <p class="card-text" style="font-family: normal normal 16px/1.4 Helvetica,Roboto,'Segoe UI',Calibri,sans-serif !important;" >${replaceURLWithHTMLLinks(text)}</p>
+                        <time class="dt-updated" datetime="${date}" pubdate="" style="font-family: normal normal 16px/1.4 Helvetica,Roboto,'Segoe UI',Calibri,sans-serif !important; font-size: 14px; color: #697882;">${toDate(date)}</time>
+                    </div>
+                    </div>`
+    }
+
+  window.onload = (function(){
+
+    var tweet = document.getElementById("tweet");
+    var id = tweet.getAttribute("tweetID");
+
+    twttr.widgets.createTweet(
+      id, tweet, 
+      {
+        conversation : 'all',    // or all
+        cards        : 'visible',  // or visible 
+        linkColor    : '#cc0000', // default is blue
+        theme        : 'light',    // or dark
+        align        : 'center'
+      })
+    .then (function (el) {
+      //el.contentDocument.querySelector(".footer").style.display = "none";
+      if(!el) {
+        $('#tweet').html(displayTweet('{{ tweet.text }}', '{{ tweet.created_at }}'));  
+      }
+    });
+
+    twttr.ready(function (twttr) {
+        // At this point the widget.js file had been loaded.
+        // We can now make use of the twttr events
+        twttr.events.bind('load', function (event) {
+            iframe = document.getElementById("twitter-widget-0");
+            if(!iframe.hasAttribute('data-tweet-id')) {
+                
+            }
+        });
+    });
+
+
+  });
+
+
+
+</script>
+
+</body>
+</html>
