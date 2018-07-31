@@ -9,7 +9,6 @@
 }
 
 .btn-topic {
-    padding: 12px;
     margin: 18px 8px;
     width: 330px;
     font-size: 14px;
@@ -23,4 +22,38 @@
 .boxed {
     border-width: 1px;
     border-color: gray;
+}
+
+.boxed2 {
+    border-width: 1px;
+    border-color: lightslategrey;
+}
+
+.form-group input[type="checkbox"] {
+    display: none;
+}
+
+.form-group input[type="checkbox"] + .btn-group > label span {
+    width: 20px;
+}
+
+.form-group input[type="checkbox"] + .btn-group > label span:first-child {
+    display: none;
+}
+.form-group input[type="checkbox"] + .btn-group > label span:last-child {
+    display: inline-block;   
+}
+
+.form-group input[type="checkbox"]:checked + .btn-group > label span:first-child {
+    display: inline-block;
+    background-color: aliceblue;
+}
+.form-group input[type="checkbox"]:checked + .btn-group > label span:last-child {
+    display: none;   
+    background-color: aliceblue;
+}
+
+.check-container, .label-container {
+    width: 330px;
+    font-size: 14px;
 }

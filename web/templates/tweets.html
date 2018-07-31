@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
     <title>Tweet Labeling</title>
 
 </head>
@@ -32,7 +34,7 @@
 
     <div class="row">
         <div class="col-lg-12 text-center">
-            <p class="text-center">Por favor, haz click en la opción que mejor describe al texto de arriba o ingresa una nueva opción</p>
+            <!-- <p class="text-center">Por favor, haz click en la o las opciones que mejor describen al tweet, o bien ingresa una nueva opción</p> -->
         </div>
     </div>
 
@@ -46,14 +48,33 @@
                 <!-- <a role="button" href="/event/{{ event_id }}/label/?representative_id=
                     {{ representative_id }}&topic_id={{ non_rel._id }}&tweet_idx={{ tweet_idx }}&
                     original_topic_id={{ original_topic_id }}" class="btn btn-danger btn-lg btn-topic">No es relevante o informativo</a>-->
-                <button type="submit" class="btn btn-danger btn-topic" name="topic_id" value="{{ non_rel._id }}">No relevante o no informativo</button>
+                <button type="submit" class="btn btn-danger btn-topic" name="non_relevant" value="true">No relevante o no informativo</button>
+                <button type="submit" class="btn btn-secondary btn-topic" name="skip" value="true">Omitir este tweet</button>
             </div>
         </div>
 
         <div class="row">
             <div class="col-lg-12 text-center">
             {% for topic in all_topics %}
-                <button type="submit" class="btn btn-warning btn-topic" name="topic_id" value="{{ topic._id }}">{{ topic.topic_name }}</button>
+                <!-- <button type="submit" class="btn btn-warning btn-topic" name="topic_id" value="{{ topic._id }}">{{ topic.topic_name }}</button>-->
+                <div class="form-group btn-group">
+                    <input type="checkbox" name="topic_id" id="{{ topic._id }}" value="{{ topic._id }}" autocomplete="off" />
+                    <div class="btn-group check-container">
+                        <label for="{{ topic._id }}" class="btn btn-warning">
+                            <span class="fa fa-check"></span>
+                            <span> </span>
+                        </label>
+                        <label for="{{ topic._id }}" class="btn btn-warning label-container">
+                            {{ topic.topic_name }}
+                        </label>
+                    </div>
+                </div>
+
+
+                <!-- <input type="checkbox" class="btn btn-warning btn-topic" name="topic_id" value="{{ topic._id }}" id="inlineCheckbox1">
+                <label class="form-check-label" for="inlineCheckbox1">{{ topic.topic_name }}</label>
+ -->
+
                 <!-- <a role="button" href="/event/{{ event_id }}/label/?representative_id={{ representative_id }}
                     &topic_id={{ topic._id }}&tweet_idx={{ tweet_idx }}&original_topic_id={{ original_topic_id }}"
                 class="btn btn-warning btn-lg btn-topic">{{ topic.topic_name }}</a> -->
@@ -69,14 +90,23 @@
             <div class="col-lg-4 col-lg-offset-4"></div>
             <div class="col-lg-4 text-center input-group">
                 <input type="text" class="form-control" name="topic_text" placeholder="O ingresa un nuevo tópico">
-                <button type="submit" name="topic_id" value="otro" class="input-group-addon btn btn-warning btn-topic-inline">Enviar</button>
             </div>
             <div class="col-lg-4 col-lg-offset-4"></div>
         </div>
+
+        <div class="form-row">
+            <div class="col-lg-4 col-lg-offset-4"></div>
+            <div class="col-lg-4 text-center">
+                <button type="submit" name="submit" id="submit" value="yes" class="btn btn-primary btn-xlarge btn-topic">Ir al siguiente</button>
+            </div>
+            <div class="col-lg-4 col-lg-offset-4"></div>
+        </div>  
+
     </form>
 
-    <div class="row">
-        <div class="col-lg-12" style="height: 20px;"></div>
+    <div class="row text-center">
+        <div class="col-lg-12" style="height: 80px;"></div>
+        <div class="col-lg-12"><small><a href="/">Volver al inicio</a></small></div>
     </div>
 
     <!--<div class="row">-->
@@ -112,8 +142,8 @@
 
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
-<script>
 
+<script>
     function replaceURLWithHTMLLinks(text) {
         var exp = /(\b(http|ftp|https):\/\/([\w-]+\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?)/ig;
         return text.replace(exp, "<a href='$1'>$1</a>"); 
@@ -155,6 +185,7 @@
       }
     });
 
+    // load tweet
     twttr.ready(function (twttr) {
         // At this point the widget.js file had been loaded.
         // We can now make use of the twttr events
@@ -166,10 +197,17 @@
         });
     });
 
+    // validation
+    $('#submit').click(function() {
+        checked = $("input[type=checkbox]:checked").length;
+        input_len = $('input:text').val().trim().length;
 
+        if(!checked && input_len == 0) {
+            alert("Para continuar, debes haber elegido al menos un tópico, haber presionado 'No relevante o no informativo', ó haber presionado 'Omitir este tweet'.");
+            return false;
+        }
+    });
   });
-
-
 
 </script>
 

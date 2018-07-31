@@ -62,7 +62,7 @@ def partition(lst, n):
 
 
 # init
-data_path = Path('/Users/mquezada/news-model/tweet_topics/')
+data_path = Path('/home/mquezada/news-model-git/news-model/tweet_topics/')
 files = list(data_path.glob('event_*-topic_*-tweet_ids_sorted_mmr.txt'))
 
 topics_tweetids = defaultdict(list)
@@ -129,48 +129,55 @@ def tweets(event_id):
                            original_topic_id=topic)
 
 
-def tweets1(event_id):
-    path = Path('/home/mquezada/tweet_topics/')
-    files = list(path.glob(f'event_{event_id}-topic_*-tweet_ids_sorted_mmr.txt'))
-    if not files:
-        return redirect(url_for('root'))
-
-    topics = []
-    for f in files:
-        with f.open('r') as g:
-            topics.append([line[:-1] for line in g.readlines()])
-
-    print(topics)
-
-
 @app.route("/event/label", methods=["GET", "POST"])
 def label():
     representative_id = request.args.get('representative_id')
     event_id = request.args.get('event_id')
     tweet_idx = request.args.get('tweet_idx')
     original_topic_id = request.args.get('original_topic_id')
-    topic_id = request.form.get('topic_id')
-    user_name = session['user_name']
-    topic_text = request.form.get('topic_text')
 
-    if not (representative_id and topic_id and event_id and user_name):
+    user_name = session['user_name']
+
+    if not (representative_id and event_id and user_name):
         abort(400)
 
-    _info(f"rep={representative_id}, event_id={event_id}, idx={tweet_idx}, orig_top={original_topic_id}, topic_id={topic_id}, topic_text={topic_text}, user={user_name}")
+    topic_ids = request.form.getlist('topic_id')
+    topic_text = request.form.get('topic_text')
+
+    non_relevant = request.form.get('non_relevant')
+    skip = request.form.get('skip')
     
-    db.representatives.update_one(
-        {"_id": ObjectId(representative_id)},
-        {
+    topic_save = defaultdict(list)
+    for topic_id in topic_ids:   
+        topic_save['topics'].append(ObjectId(topic_id))
+
+    if topic_text:
+        topic_save['custom_topic'] = topic_text
+
+    if skip:
+        topic_save['skipped'] = True
+    
+    if non_relevant:
+        topic_save['non_relevant'] = True
+        topic_save.pop('topics', None)
+        topic_save.pop('custom_topic', None)
+
+    to_save = {
             "$push": {
                 "topic": {
-                    "topic_id": ObjectId(topic_id) if topic_id != "otro" else "otro",
-                    "topic_text": topic_text,
+                    "info": dict(topic_save),
                     "added_timestamp": datetime.utcnow(),
                     "user_name": user_name
                 }
             }
-        } 
-    )
+        }
+    
+    rep_id = {"_id": ObjectId(representative_id)}
+
+    db.representatives.update_one(rep_id, to_save)
+
+    _info(f"updated: {representative_id}. User: {user_name}. Topics: {topic_save}")
 
     labelers[event_id].label(original_topic_id, int(tweet_idx))
+
     return redirect(url_for('tweets', event_id=event_id))

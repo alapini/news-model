@@ -22,7 +22,7 @@
     <div class="row">
         <div class="col-lg-12">
             <blockquote class="blockquote">
-                <h1>Tweet Labeling System</h1>
+                <h1>Etiquetar tweets noticiosos</h1>
             </blockquote>
         </div>
     </div>
@@ -34,8 +34,36 @@
     <div class="row">
         <div class="col-lg-12">
             <div class="alert alert-primary">
-                <h2 class="alert-heading">Descripción de la tarea</h2>
-                <p>...</p>
+                <h2 class="alert-heading">Paso 0: Leer estas instrucciones</h2>
+                <p>El objetivo de esta tarea es asignar etiquetas a tweets.</p>
+                <p>
+                    Hay tres eventos noticiosos disponibles, descritos abajo, para los cuales se requiere etiquetar tweets.
+                    Los tweets pueden ser relevantes al evento (al describir algún aspecto de éste), o no (por ej. spam, conversaciones, mensajes no informativos).
+                    Para cada tweet se requiere escoger de una lista los tópicos que mejor describen al tweet.
+                </p>
+                <p>
+                    Por cada evento, te pedimos:
+                    <ol>
+                        <li>Leer la primera sección de Wikipedia del artículo del evento (ver <em>Paso 1</em> abajo)</li>
+                        <li>Ingresar tus datos para ese evento (ver <em>Paso 2</em>)</li>
+                        <li>Presionar "Ir a la evaluación":</li>
+                        <ol>
+                            <li>En la interfaz de evaluación, escoger los tópicos para cada tweet (puedes elegir más de uno)</li>
+                            <li>Si no encuentras el tópico que crees que corresponde, puedes escribirlo en el campo de texto correspondiente</li>
+                            <li>Si consideras que el tweet no es informativo o no es relevante, presiona "No relevante o no informativo"</li>
+                            <li>Si no estás seguro/a de qué hacer, presiona "Omitir este tweet"</li>
+                            <li>Si estás listo para continuar, presiona "Enviar"</li>
+                            <li>Repetir este proceso por unos 20 a 30 minutos (entre más tweets etiquetes, mejor!)</li>
+                        </ol>
+                        <li>Al terminar, pasar al siguiente evento (volver al punto (1) de esta lista)</li>
+                    </ol>
+                    Te recomendamos leer toda la lista de tópicos antes de empezar a etiquetar.
+                </p>
+                
+                <p>
+                    Te pedimos <strong>al menos una hora</strong> para etiquetar tweets (20-30 minutos por cada evento). 
+                    Entre más tweets etiquetes, mejor para nosotros :-)
+                </p>
             </div>
         </div>
     </div>
@@ -47,25 +75,32 @@
     <div class="row">
         <div class="col-lg-12">
             <div class="alert alert-info">
-                <h2 class="alert-heading">Eventos</h2>
+                <h2 class="alert-heading">Paso 1: Elegir un evento y leer la primera sección del artículo de Wikipedia que se menciona</h2>
+                <h5>(Para el evento "2015 Corinthia hotel attack" leer el artículo completo)</h5>
+                <br>
                 <dl>
                 {% for event in events %}
                     <dt>{{ event.human_name }}</dt>
-                    <dd>{{ event.description }}</dd>                    
+                    <dd><a href="{{ event.url }}">{{event.url}}</a></dd>
+                    
                     <hr>
                 {% endfor %}
                 </dl>
             </div>
         </div>
     </div>
+    
+    <div class="row">
+        <div class="col-lg-12" style="height: 20px;"></div>
+    </div>
 
     <div class="row">
         <div class="col-lg-12">
             <div class="alert alert-warning">
-                <h2 class="alert-heading">Comenzar la tarea</h2>
+                <h2 class="alert-heading">Paso 2: Ingresar tus datos</h2>
                 <form action="{{ url_for('init') }}" method="post">
                     <div class="form-group">
-                        <label for="nombre">Ingresa tu nombre</label>
+                        <label for="nombre">Ingresa tu nombre y apellido</label>
                         <input type="text" class="form-control" id="nombre" name="nombre" placeholder="Tu nombre" required>
                     </div>
                     <div class="form-group">
@@ -83,6 +118,8 @@
             </div>
         </div>
     </div>
+
+    <div class="row" style="padding-bottom: 60px;"></div>
 
 </div>
 
