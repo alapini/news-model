@@ -52,12 +52,11 @@
                             <li>Si no encuentras el tópico que crees que corresponde, puedes escribirlo en el campo de texto correspondiente</li>
                             <li>Si consideras que el tweet no es informativo o no es relevante, presiona "No relevante o no informativo"</li>
                             <li>Si no estás seguro/a de qué hacer, presiona "Omitir este tweet"</li>
-                            <li>Si estás listo para continuar, presiona "Enviar"</li>
+                            <li>Si estás listo/a para continuar, presiona "Enviar"</li>
                             <li>Repetir este proceso por unos 20 a 30 minutos (entre más tweets etiquetes, mejor!)</li>
                         </ol>
                         <li>Al terminar, pasar al siguiente evento (volver al punto (1) de esta lista)</li>
                     </ol>
-                    Te recomendamos leer toda la lista de tópicos antes de empezar a etiquetar.
                 </p>
                 
                 <p>
@@ -81,7 +80,7 @@
                 <dl>
                 {% for event in events %}
                     <dt>{{ event.human_name }}</dt>
-                    <dd><a href="{{ event.url }}">{{event.url}}</a></dd>
+                    <dd><a href="{{ event.url }}" target="_blank">{{event.url}}</a></dd>
                     
                     <hr>
                 {% endfor %}
