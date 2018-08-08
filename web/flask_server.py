@@ -20,6 +20,7 @@ db = client.twitter_news
 app = Flask(__name__)
 app.secret_key = "hola guaripolas &##&$:__--_*[????=)&%==/%)=$%&?==fsBFgrd34Gevu98%( $%&#&/$Y#"
 
+# FLASK_APP=flask_server.py FLASK_ENV=development flask run --host=0.0.0.0
 
 total_events = 3
 
@@ -120,3 +121,7 @@ def label():
 
     _info(f"updated: {representative_id}. User: {user_name}")
     return redirect(url_for('tweets', event_id=event_id))
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')
