@@ -42,12 +42,9 @@
         <div class="col-lg-12" style="height: 10px;"></div>
     </div>
 
-    <form action="{{ url_for('label', event_id=event_id, representative_id=representative_id, tweet_idx=tweet_idx, original_topic_id=original_topic_id) }}" method="post">
+    <form action="{{ url_for('label', event_id=event_id, representative_id=representative_id) }}" method="post">
         <div class="row">
-            <div class="col-lg-12 text-center">
-                <!-- <a role="button" href="/event/{{ event_id }}/label/?representative_id=
-                    {{ representative_id }}&topic_id={{ non_rel._id }}&tweet_idx={{ tweet_idx }}&
-                    original_topic_id={{ original_topic_id }}" class="btn btn-danger btn-lg btn-topic">No es relevante o informativo</a>-->
+            <div class="col-lg-12 text-center">               
                 <button type="submit" class="btn btn-danger btn-topic" name="non_relevant" value="true">No relevante o no informativo</button>
                 <button type="submit" class="btn btn-secondary btn-topic" name="skip" value="true">Omitir este tweet</button>
             </div>
@@ -69,15 +66,6 @@
                         </label>
                     </div>
                 </div>
-
-
-                <!-- <input type="checkbox" class="btn btn-warning btn-topic" name="topic_id" value="{{ topic._id }}" id="inlineCheckbox1">
-                <label class="form-check-label" for="inlineCheckbox1">{{ topic.topic_name }}</label>
- -->
-
-                <!-- <a role="button" href="/event/{{ event_id }}/label/?representative_id={{ representative_id }}
-                    &topic_id={{ topic._id }}&tweet_idx={{ tweet_idx }}&original_topic_id={{ original_topic_id }}"
-                class="btn btn-warning btn-lg btn-topic">{{ topic.topic_name }}</a> -->
             {% endfor %}
             </div>
         </div>

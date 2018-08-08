@@ -7,10 +7,9 @@ from datetime import datetime
 from flask import Flask, render_template, redirect, url_for, session, request, abort
 from functools import lru_cache
 from pathlib import Path
-from web.topic_labeler import TopicLabeler
 from collections import defaultdict
 
-from multiprocessing import Value
+from web.topic_labeler2 import get_next_tweet, label_tweet
 
 
 logging.basicConfig(format='%(asctime)s : %(message)s', level=logging.INFO)
@@ -57,66 +56,35 @@ def get_events():
     return list(events)
 
 
-def partition(lst, n):
-    return [lst[i::n] for i in range(n)]
-
-
-# init
-data_path = Path('/home/mquezada/news-model-git/news-model/tweet_topics/')
-files = list(data_path.glob('event_*-topic_*-tweet_ids_sorted_mmr.txt'))
-
-topics_tweetids = defaultdict(list)
-
-all_tweets = get_tweets()
-all_tweets_d = dict()
-for t in all_tweets:
-    all_tweets_d[str(t['_id'])] = t
-    
-for f_0 in files:
-    #print(f_0)
-    _, ev, top, _, _, _ = f_0.name.split("_")
-    event_id = ev.split("-")[0]
-    topic_id = top.split("-")[0]
-    #print(event_id, topic_id)
-    
-    with f_0.open() as f:
-        for i, line in enumerate(f):
-            r_id = line[:-1]
-            topics_tweetids[topic_id].append(r_id)
-
-labelers = dict()
-events = get_events()
-for e in events:
-    event_id = str(e['_id'])
-    all_topics, _ = get_topics(event_id)
-    topics_tweets_this_event = {k: v for (k, v) in topics_tweetids.items() if k in [str(t['_id']) for t in all_topics]}
-    labelers[event_id] = TopicLabeler(topics_tweets_this_event)
-
-
 @app.route("/")
 def root():
     events = get_events()
-    return render_template('events.html', events=events)
+    message = session.get('message')
+    session['message'] = None
+    return render_template('events.html', events=events, message=message)
 
 @app.route("/init", methods=["POST"])
 def init():
     user_name = request.form["nombre"]
-    session['user_name'] = user_name
-    event_id = request.form["eligeEvento"]
-    return redirect(url_for('tweets', event_id=event_id))
+    password = request.form["password"]
+
+    u = db.users.find_one({'username': user_name, 'password': password})
+    if u:
+        session['user_name'] = user_name
+        event_id = request.form["eligeEvento"]
+        return redirect(url_for('tweets', event_id=event_id))
+    else:
+        session['message'] = "Usuario/contraseña incorrectos"
+        return redirect(url_for('root'))
 
 
 @app.route("/event/<event_id>/tweets")
 def tweets(event_id):
     all_topics, nrel = get_topics(event_id)
-
-    topic_labeler = labelers[event_id]
-
-    _info("querying a random tweet")
-    topic, tweet_idx = topic_labeler.sample()
-    tweet_id = topic_labeler.get_tweet(topic, tweet_idx)  # es un tweet_id
+    user_name = session['user_name']
+    representative = get_next_tweet(user_name, event_id)
     
-    tweet = db.tweets.find_one({'_id': ObjectId(tweet_id)})
+    tweet = db.tweets.find_one({'representative': representative['_id']})
     representative_id = str(tweet['representative'])
 
     return render_template('tweets.html',
@@ -124,18 +92,14 @@ def tweets(event_id):
                            all_topics=all_topics,
                            non_rel = nrel,
                            event_id=event_id,
-                           representative_id=representative_id,
-                           tweet_idx=tweet_idx,
-                           original_topic_id=topic)
+                           representative_id=representative_id)
 
 
 @app.route("/event/label", methods=["GET", "POST"])
 def label():
     representative_id = request.args.get('representative_id')
     event_id = request.args.get('event_id')
-    tweet_idx = request.args.get('tweet_idx')
-    original_topic_id = request.args.get('original_topic_id')
-
+    
     user_name = session['user_name']
 
     if not (representative_id and event_id and user_name):
@@ -146,38 +110,13 @@ def label():
 
     non_relevant = request.form.get('non_relevant')
     skip = request.form.get('skip')
-    
-    topic_save = defaultdict(list)
-    for topic_id in topic_ids:   
-        topic_save['topics'].append(ObjectId(topic_id))
 
-    if topic_text:
-        topic_save['custom_topic'] = topic_text
+    res = label_tweet(user_name=user_name,
+                      topic_ids=topic_ids,
+                      topic_text=topic_text,
+                      non_relevant=non_relevant,
+                      skip=skip,
+                      representative_id=representative_id)
 
-    if skip:
-        topic_save['skipped'] = True
-    
-    if non_relevant:
-        topic_save['non_relevant'] = True
-        topic_save.pop('topics', None)
-        topic_save.pop('custom_topic', None)
-
-    to_save = {
-            "$push": {
-                "topic": {
-                    "info": dict(topic_save),
-                    "added_timestamp": datetime.utcnow(),
-                    "user_name": user_name
-                }
-            }
-        }
-    
-    rep_id = {"_id": ObjectId(representative_id)}
-
-    db.representatives.update_one(rep_id, to_save)
-
-    _info(f"updated: {representative_id}. User: {user_name}. Topics: {topic_save}")
-
-    labelers[event_id].label(original_topic_id, int(tweet_idx))
-
+    _info(f"updated: {representative_id}. User: {user_name}")
     return redirect(url_for('tweets', event_id=event_id))
