@@ -121,7 +121,3 @@ def label():
 
     _info(f"updated: {representative_id}. User: {user_name}")
     return redirect(url_for('tweets', event_id=event_id))
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0')
