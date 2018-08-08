@@ -74,8 +74,8 @@
     <div class="row">
         <div class="col-lg-12">
             <div class="alert alert-info">
-                <h2 class="alert-heading">Paso 1: Elegir un evento y leer la primera sección del artículo de Wikipedia que se menciona</h2>
-                <h5>(Para el evento "2015 Corinthia hotel attack" leer el artículo completo)</h5>
+                <h2 class="alert-heading">Paso 1: Lee la primera sección del artículo de Wikipedia del evento que vas a etiquetar</h2>
+                <h5>(Para el evento "2015 Corinthia hotel attack" lee el artículo completo)</h5>
                 <br>
                 <dl>
                 {% for event in events %}
@@ -101,7 +101,7 @@
             </div>
             {% endif %}
             <div class="alert alert-warning">
-                <h2 class="alert-heading">Paso 2: Ingresar tus datos</h2>
+                <h2 class="alert-heading">Paso 2: Ingresa tus datos</h2>
 
                 <form action="{{ url_for('init') }}" method="post">
                     <div class="form-group">
