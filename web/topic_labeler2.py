@@ -126,6 +126,7 @@ def get_next_tweet(user_name, event_id):
 
     # reps labeled by this user: dict of ids
     reps_labeled = get_reps_user(user_name, event_id)
+    total_labeled = sum(len(v) for v in reps_labeled.values())
     
     if DEBUG:
         print("labeled by this user")
@@ -176,7 +177,8 @@ def get_next_tweet(user_name, event_id):
         print("rep chosen")
         pprint(rep)
         print()
-    return rep
+
+    return rep, total_labeled
 
 
 def label_tweet(user_name=None, 

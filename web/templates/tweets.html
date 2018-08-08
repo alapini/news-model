@@ -94,7 +94,55 @@
 
     <div class="row text-center">
         <div class="col-lg-12" style="height: 80px;"></div>
+        <div class="col-lg-12"><small style="color: gray">Llevas {{ count }} tweets</small></div>
+        <div class="col-lg-12"><small><a href="#" data-toggle="modal" data-target=".bd-example-modal-lg">Ver instrucciones</a></small></div>
         <div class="col-lg-12"><small><a href="/">Volver al inicio</a></small></div>
+    </div>
+
+    <div class="modal fade bd-example-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Instrucciones</h2>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>El objetivo de esta tarea es asignar etiquetas descriptivas a tweets.</p>
+                    <p>
+                        Hay tres eventos noticiosos disponibles, descritos abajo.
+                        Los tweets asociados a cada evento pueden ser relevantes a éste (al describir algún aspecto del evento), o no (por ej. spam, conversaciones).
+                    </p>
+                    <p>
+                        Por cada evento, te pedimos:
+                        <ol>
+                            <li>Leer la primera sección de Wikipedia del artículo del evento (<em>Paso 1</em> abajo)</li>
+                            <li>Ingresar tus datos para ese evento (<em>Paso 2</em>)</li>
+                            <li>Luego, en la interfaz:</li>
+                            <ol>
+                                <li>Escoger el o los tópicos más apropiados para cada tweet (puedes elegir más de uno)</li>
+                                <li>Si no encuentras el tópico que crees que corresponde, puedes escribirlo en el campo de texto correspondiente</li>
+                                <li>Si consideras que el tweet no entrega información sobre el evento, o bien es totalmente irrelevante a éste, presiona "No relevante o no informativo"</li>
+                                <li>Si no estás seguro/a de qué hacer, presiona "Omitir este tweet"</li>
+                                <li>Si estás listo/a para continuar, presiona "Enviar"</li>
+                                <li>Repite el proceso para el siguiente tweet</li>
+                            </ol>
+                            <li>Al terminar, pasa al siguiente evento (punto (1) de esta lista)</li>
+                        </ol>
+                    </p>
+                    
+                    <p>
+                        Te pedimos <strong>al menos una hora</strong> para etiquetar tweets (unos 20 a 30 minutos por cada evento). 
+                    </p>
+                    <p>No es necesario que destines una hora de corrido. Puedes salir y volver en otro momento.</p>
+                    <p>Entre más tweets etiquetes, ¡mucho mejor para nuestra evaluación! Gracias :-)</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Ok</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!--<div class="row">-->

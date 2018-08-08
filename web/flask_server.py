@@ -83,7 +83,7 @@ def init():
 def tweets(event_id):
     all_topics, nrel = get_topics(event_id)
     user_name = session['user_name']
-    representative = get_next_tweet(user_name, event_id)
+    representative, count = get_next_tweet(user_name, event_id)
     
     tweet = db.tweets.find_one({'representative': representative['_id']})
     representative_id = str(tweet['representative'])
@@ -93,6 +93,7 @@ def tweets(event_id):
                            all_topics=all_topics,
                            non_rel = nrel,
                            event_id=event_id,
+                           count=count,
                            representative_id=representative_id)
 
 
