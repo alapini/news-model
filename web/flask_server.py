@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from collections import defaultdict
 
-from mongo_password import user, password
+from web.mongo_password import user, password
 
 from web.topic_labeler2 import get_next_tweet, label_tweet
 
