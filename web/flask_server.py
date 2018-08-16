@@ -9,13 +9,20 @@ from functools import lru_cache
 from pathlib import Path
 from collections import defaultdict
 
+from mongo_password import user, password
+
 from web.topic_labeler2 import get_next_tweet, label_tweet
 
 
 logging.basicConfig(format='%(asctime)s : %(message)s', level=logging.INFO)
 _info = logging.info
 
-client = MongoClient('mongodb://localhost:27017')
+if user:
+    login = f'{user}:{password}@'
+else:
+    login = ''
+
+client = MongoClient(f'mongodb://{login}localhost:27017')
 db = client.twitter_news
 app = Flask(__name__)
 app.secret_key = "hola guaripolas &##&$:__--_*[????=)&%==/%)=$%&?==fsBFgrd34Gevu98%( $%&#&/$Y#"
