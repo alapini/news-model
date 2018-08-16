@@ -22,6 +22,8 @@ import numpy as np
 from pprint import pprint
 import os
 
+from web.mongo_password import user, password
+
 
 random.seed = os.urandom(1024)
 
@@ -30,7 +32,12 @@ DEBUG = False
 logging.basicConfig(format='%(asctime)s : %(message)s', level=logging.INFO)
 _info = logging.info
 
-client = MongoClient('mongodb://localhost:27017')
+if user:
+    login = f'{user}:{password}@'
+else:
+    login = ''
+
+client = MongoClient(f'mongodb://{login}localhost:27017')
 db = client.twitter_news
 
 
