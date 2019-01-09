@@ -6,6 +6,8 @@ from unionfind import UnionFind
 from paths import data_path
 from load_urls import load_urls
 
+import json
+
 from collections import namedtuple
 
 

@@ -1,0 +1,631 @@
+---
+title: "Exploracion modelo"
+output: 
+  html_document: 
+    df_print: paged
+    toc: yes
+---
+
+# Definicion del modelo
+
+Dado un evento $E = (t_1, t_2, \ldots, t_N)$:
+
+1. Para cada tweet $t_i \in E$:
+  - por cada url $u_k$ mencionada en $t_i$:
+    - crea un par $(t_{ik}, u_k)$, donde $t_{ik}$ es una copia de $t_i$
+    - crea un par $(t_{ik}, t_{reply})$ donde $t_{reply}$ es el tweet al que responde $t_i$ (si es que existe)
+    - crea un par $(t_{ik}, t_{RT})$ donde $t_{RT}$ es el tweet al que retuitea o cita $t_i$ (si es que existe)
+2. Crear el grafo $G$ dado por las aristas $(t_i, x_j)$, donde $t_i$ es un tweet y $x_j$ puede ser un tweet o una URL
+3. Encontrar las componentes conexas $C$ de $G$
+4. retornar $C$
+
+
+# Cargar librerías y datos
+
+```{r, message=F, comment=F}
+library(tidyverse)
+library(purrr)
+library(tidyr)
+library(broom)
+library(glue)
+```
+
+```{r load_data, message=F, comment=F, cache=TRUE}
+components <- read_delim('data_exploration/model_orig_components.tsv', delim = '\t', col_names = c('event', 'component_id', 'tweet_id'), col_types = cols(event = col_character(), component_id = col_character(), tweet_id = col_character()))
+
+url_index <- read_delim('data_exploration/model_orig_urlindex.tsv', delim = '\t', col_names = c('event', 'component_id', 'url'), col_types = cols(event = col_character(), component_id = col_character(), url = col_character()))
+
+tweet_data <- read_delim('data_exploration/model_orig_data.tsv', delim = '\t', col_names = c('event', 'tweet_id', 'tweet_text'), col_types = cols(event = col_character(), tweet_id = col_character(), tweet_text = col_character()))
+
+tweet_topic <- read_delim('topic_labeling_results/tweet_topic.tsv', delim='\t', col_names = c('tweet_id', 'topic_id'), col_types= cols(tweet_id = col_character(), topic_id = col_character()))
+
+vectors <- read_delim('data_exploration/model_orig_vectors.tsv', delim = '\t', col_names = c('event', 'component_id', paste("d", seq(100), sep = "")), col_types = cols(.default = col_double(), component_id = col_character(), event = col_character()))
+
+raw_vectors <- read_delim('data_exploration/raw_vectors.tsv', delim = '\t', col_names = c('event', 'tweet_id', paste("d", seq(100), sep = "")), col_types = cols(.default = col_double(), tweet_id = col_character(), event = col_character()))
+```
+
+# Exploración básica
+
+```{r summary}
+components %>%
+  group_by(event) %>%
+  summarise(
+    tweets = n(),
+    components = n_distinct(component_id)) -> summ1
+ 
+url_index %>%
+  group_by(event) %>%
+  summarise(`unique urls` = n_distinct(url)) -> summ2
+
+summ1 %>%
+  left_join(summ2, by = "event")
+```
+
+## Tamaños de componentes y urls por componente
+
+**Se correlaciona la cantidad de URLs en una componente con el tamaño de esta?**
+
+```{r}
+(per_comp <- components %>%
+  group_by(event, component_id) %>%
+  summarise(component_size = n()) %>%
+  left_join(
+    url_index %>%
+      group_by(event, component_id) %>%
+      summarise(diff_urls = n_distinct(url)),
+    by = c("event", "component_id")
+  ) %>%
+  left_join(
+    components %>%
+      left_join(tweet_topic, by = "tweet_id") %>%
+      filter(!is.na(topic_id)) %>%
+      group_by(event, component_id) %>%
+      summarise(
+        tweets_labeled = n(),
+        diff_labels = n_distinct(topic_id)),
+    by = c("event", "component_id")
+  ) %>%
+  arrange(desc(component_size))
+ )
+
+ggplot(per_comp) + 
+  geom_point(aes(y = component_size, x = diff_urls)) + 
+  facet_grid(~ event) + 
+  scale_y_log10() +
+  labs(x = "urls in the component", y = "component size (log10)", title = "Amount of URLs vs Component size")
+
+ggplot(per_comp %>% filter(!is.na(tweets_labeled))) + 
+  geom_point(aes(y = component_size, x = tweets_labeled)) + 
+  facet_grid(~ event) + 
+  scale_y_log10() + 
+  scale_x_continuous(breaks = seq(0, 160, 20)) +
+  labs(x = "amount of tweets labeled in the component", y = "component size (log10)", title = "Tweets labeled vs Component size")
+
+ggplot(per_comp %>% filter(!is.na(diff_labels))) + 
+  geom_point(aes(y = component_size, x = diff_labels)) + 
+  facet_grid(~ event) + 
+  scale_y_log10() + 
+  labs(x = "different labels in the component", y = "component size (log10)", title = "DIFFERENT labels vs Component size")
+
+ggplot(per_comp %>% filter(!is.na(tweets_labeled))) + 
+  geom_point(aes(x = diff_labels, y = tweets_labeled)) + 
+  scale_y_continuous(breaks = seq(0, 130, 10)) +
+  facet_grid(~ event) +
+  labs(x = "different labels in a component", y = "amount of tweets labeled in the component", title = "amount of tweets labeled vs different labels in a component")
+
+ggplot(per_comp) +
+  stat_ecdf(aes(x = component_size, color = event)) + 
+  scale_x_log10() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Component size (log10)", y = "percentage", title = "Cumulative density plot for component sizes")
+``` 
+
+```{r}
+per_comp %>% filter(diff_urls > 1) %>% arrange(desc(diff_urls))
+```
+
+
+
+# Clustering de tweets sueltos (sin modelo)
+
+```{r}
+Purity <- function(clusters, classes) {
+  sum(apply(table(classes, clusters), 2, max)) / length(clusters)
+}
+```
+
+
+## Libya
+
+```{r, cache = T}
+set.seed(1000937)
+ev <- "libya"
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  select(-event, -tweet_id) %>%
+  kmeans(centers = 10,  iter.max = 100, nstart = 10) -> km.raw.libya
+
+# guardar labels (y_pred)
+raw_vectors %>%
+  filter(event == ev) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.libya$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  filter(!is.na(topic_id)) -> results.raw.libya
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.libya$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  group_by(cluster) %>%
+  summarise(
+    `cluster_size` = n()
+  ) -> tmp
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.libya$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  filter(!is.na(topic_id)) %>%
+  group_by(cluster) %>%
+  summarise(
+    `tweets labeled` = n(),
+    `different labels` = n_distinct(topic_id)
+  ) -> tmp2
+
+tmp %>% left_join(tmp2, by = "cluster")
+``` 
+
+```{r}
+Purity(results.raw.libya$cluster, results.raw.libya$topic_id)
+```
+
+
+
+## Pistorius
+
+```{r, cache = T}
+set.seed(1000937)
+ev <- "pistorius"
+
+raw_vectors %>%
+  filter(event == ev, is.na(d1)) -> to_remove
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "tweet_id")) %>%
+  select(-event, -tweet_id) %>%
+  kmeans(centers = 10,  iter.max = 100, nstart = 10) -> km.raw.pistorius
+
+# guardar labels (y_pred)
+raw_vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "tweet_id")) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.pistorius$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  filter(!is.na(topic_id)) -> results.raw.pistorius
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "tweet_id")) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.pistorius$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  group_by(cluster) %>%
+  summarise(
+    `cluster_size` = n()
+  ) -> tmp
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "tweet_id")) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.pistorius$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  filter(!is.na(topic_id)) %>%
+  group_by(cluster) %>%
+  summarise(
+    `tweets labeled` = n(),
+    `different labels` = n_distinct(topic_id)
+  ) -> tmp2
+
+tmp %>% left_join(tmp2, by = "cluster")
+``` 
+
+```{r}
+Purity(results.raw.pistorius$cluster, results.raw.pistorius$topic_id)
+```
+
+
+
+
+
+
+## Nepal
+
+```{r, cache = T}
+set.seed(1000937)
+ev <- "nepal"
+
+raw_vectors %>%
+  filter(event == ev, is.na(d1)) -> to_remove
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "tweet_id")) %>%
+  select(-event, -tweet_id) %>%
+  kmeans(centers = 10,  iter.max = 100, nstart = 10) -> km.raw.nepal
+
+# guardar labels (y_pred)
+raw_vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "tweet_id")) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.nepal$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  filter(!is.na(topic_id)) -> results.raw.nepal
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "tweet_id")) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.nepal$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  group_by(cluster) %>%
+  summarise(
+    `cluster_size` = n()
+  ) -> tmp
+
+raw_vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "tweet_id")) %>%
+  select(tweet_id) %>%
+  mutate(cluster = km.raw.nepal$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  filter(!is.na(topic_id)) %>%
+  group_by(cluster) %>%
+  summarise(
+    `tweets labeled` = n(),
+    `different labels` = n_distinct(topic_id)
+  ) -> tmp2
+
+tmp %>% left_join(tmp2, by = "cluster")
+``` 
+
+```{r}
+Purity(results.raw.nepal$cluster, results.raw.nepal$topic_id)
+```
+
+
+
+
+
+
+
+# Clustering de componentes
+
+**Hay una correlación entre la cantidad de URLs en un cluster vs la cantidad de etiquetas distintas en éste**
+
+## Libya
+
+```{r, cache = T}
+set.seed(1000937)
+ev <- "libya"
+
+vectors %>%
+  filter(event == ev) %>%
+  select(-event, -component_id) %>%
+  kmeans(centers = 10,  iter.max = 1000, nstart = 25) -> km.model.libya
+
+per_comp %>%
+  filter(event == ev) %>%
+  mutate(cluster = km.model.libya$cluster) %>%
+  select(component_id, cluster) -> tmp
+
+## y_pred
+components %>% 
+  filter(event == ev) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  left_join(tmp, by = "component_id") %>%
+  select(-event.x, -event.y) %>%
+  filter(!is.na(topic_id)) -> results.model.libya
+
+per_comp %>%
+  filter(event == ev) %>%
+  mutate(cluster = km.model.libya$cluster) %>%
+  filter(!is.na(tweets_labeled)) %>%
+  group_by(cluster) %>%
+  summarise(
+    `tweets labeled` = sum(tweets_labeled),
+    `different labels` = sum(diff_labels),
+    `different urls` = sum(diff_urls),
+    `total tweets` = sum(component_size)
+  ) -> result
+
+(ggplot(result) + 
+  geom_point(aes(x = `different labels`, y = `different urls`)) +
+  labs(title = "different URLs in each cluster vs different labels in each cluster"))
+
+result %>% arrange(desc(`different labels`))
+``` 
+
+
+```{r}
+Purity(results.model.libya$cluster, results.model.libya$topic_id)
+```
+
+
+
+## Pistorius
+
+Limpiar ademas vectores con `NA`s
+
+```{r, cache = T}
+set.seed(1000937)
+ev <- "pistorius"
+
+vectors %>%
+  filter(event == ev, is.na(d1)) -> to_remove
+
+vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "component_id")) %>%
+  select(-event, -component_id) %>%
+  kmeans(centers = 10, iter.max = 10000, nstart = 25) -> km.model.pistorius
+
+per_comp %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "component_id")) %>%
+  mutate(cluster = km.model.pistorius$cluster) %>%
+  select(component_id, cluster) -> tmp
+
+## y_pred
+components %>% 
+  filter(event == ev) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  left_join(tmp, by = "component_id") %>%
+  select(-event.x, -event.y) %>%
+  filter(!is.na(topic_id)) -> results.model.pistorius
+
+
+per_comp %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "component_id")) %>%
+  mutate(cluster = km.model.pistorius$cluster) %>%
+  filter(!is.na(tweets_labeled)) %>%
+  group_by(cluster) %>%
+  summarise(
+    `tweets labeled` = sum(tweets_labeled),
+    `different labels` = sum(diff_labels),
+    `different urls` = sum(diff_urls),
+    `total tweets` = sum(component_size)
+  ) -> result
+
+(ggplot(result) + geom_point(aes(x = `different labels`, y = `different urls`)) + labs(title = "different URLs in each cluster vs different labels in each cluster"))
+result %>% arrange(desc(`different labels`))
+```  
+
+```{r}
+Purity(results.model.pistorius$cluster, results.model.pistorius$topic_id)
+```
+
+
+
+
+
+
+
+## Nepal
+
+```{r, cache = T}
+set.seed(1000937)
+ev <- "nepal"
+
+vectors %>%
+  filter(event == ev, is.na(d1)) -> to_remove
+
+vectors %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "component_id")) %>%
+  select(-event, -component_id) %>%
+  kmeans(centers = 10, iter.max = 1000, nstart = 25) -> km.model.nepal
+
+
+per_comp %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "component_id")) %>%
+  mutate(cluster = km.model.nepal$cluster) %>%
+  select(component_id, cluster) -> tmp
+
+## y_pred
+components %>% 
+  filter(event == ev) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  left_join(tmp, by = "component_id") %>%
+  select(-event.x, -event.y) %>%
+  filter(!is.na(topic_id)) -> results.model.nepal
+
+per_comp %>%
+  filter(event == ev) %>%
+  anti_join(to_remove, by = c("event", "component_id")) %>%
+  mutate(cluster = km.model.nepal$cluster) %>%
+  filter(!is.na(tweets_labeled)) %>%
+  group_by(cluster) %>%
+  summarise(
+    `tweets labeled` = sum(tweets_labeled),
+    `different labels` = sum(diff_labels),
+    `different urls` = sum(diff_urls),
+    `total tweets` = sum(component_size)
+  ) -> result
+
+(ggplot(result) + geom_point(aes(x = `different labels`, y = `different urls`)) + labs(title = "different URLs in each cluster vs different labels in each cluster"))
+
+result %>% arrange(desc(`different labels`))
+``` 
+
+
+```{r}
+Purity(results.model.nepal$cluster, results.model.nepal$topic_id)
+```
+
+
+# Clustering de "sub-componentes"
+
+**idea:** tomar los clusters de componentes y volver a hacer clustering de los clusters más grandes
+
+## Libya
+
+```{r}
+ev <- 'libya'
+
+(per_comp %>%
+  filter(event == ev) %>%
+  mutate(cluster = km.model.libya$cluster) %>%
+  filter(!is.na(tweets_labeled)) %>%
+  group_by(cluster) %>%
+  summarise(
+    `tweets labeled` = sum(tweets_labeled),
+    `different labels` = sum(diff_labels),
+    `different urls` = sum(diff_urls),
+    `total tweets` = sum(component_size)
+  ) -> stats.libya)
+```
+
+Elegimos el cluster 1:
+
+```{r, cache = T}
+set.seed(1000937)
+cl <- 1
+ev <- 'libya'
+
+per_comp %>% ungroup() %>%
+  filter(event == ev) %>%
+  mutate(cluster = km.model.libya$cluster) %>%
+  filter(cluster == cl) %>%
+  select(component_id) %>%
+  left_join(components %>% filter(event == ev), by = "component_id") %>%
+  left_join(raw_vectors, by = "tweet_id") -> tmp
+
+# == numero de clusters para kmeans
+diff_urls_in_cluster <- stats.libya %>% filter(cluster == cl) %>% .$`different urls`
+
+tmp %>%
+  select(-component_id, -event.x, -event.y, -tweet_id) %>%
+  kmeans(centers = diff_urls_in_cluster) -> km.model.sub.libya
+
+km.model.sub.libya$size
+```
+
+Pureza de los sub-clusters:
+
+```{r}
+set.seed(1000937)
+tmp %>% 
+  select(tweet_id) %>%
+  mutate(cluster = km.model.sub.libya$cluster) %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  filter(!is.na(topic_id)) -> results.model.sub.libya
+
+Purity(results.model.sub.libya$cluster, results.model.sub.libya$topic_id)
+  
+```
+
+
+
+Explorar datos por cluster:
+
+```{r}
+set.seed(1000937)
+
+for(i in seq(km.model.sub.libya$cluster)) {
+  tmp %>% 
+    select(tweet_id) %>%
+    mutate(cluster = km.model.sub.libya$cluster) %>%
+    filter(cluster == i) %>%
+    left_join(tweet_data, by = "tweet_id") %>%
+    select(tweet_text) %>%
+    head()
+}
+
+
+```
+
+# Grafo de URLs
+
+Elegir el cluster con más URLs distintas en Libya, extraer los tweet ids;
+
+## Libya
+
+```{r}
+tmp <- per_comp %>%
+  filter(event == 'libya') %>%
+  mutate(cluster = km.model.libya$cluster) 
+ 
+tmp %>%
+  group_by(cluster) %>%
+  summarise(urls = sum(diff_urls)) %>%
+  arrange(desc(urls))
+```
+
+```{r}
+tmp %>%
+  filter(cluster == 7) %>%
+  left_join(components %>% filter(event == "libya"), by = "component_id") %>%
+  ungroup() %>%
+  select(tweet_id) %>%
+  write_delim('data_exploration/libya_model_cluster_7_tweet_ids.txt')
+
+tmp %>%
+  filter(cluster == 1) %>%
+  left_join(components %>% filter(event == "libya"), by = "component_id") %>%
+  ungroup() %>%
+  select(tweet_id) %>%
+  write_delim('data_exploration/libya_model_cluster_1_tweet_ids.txt')
+```
+
+
+## Nepal
+
+
+```{r}
+vectors %>%
+  filter(event == ev, is.na(d1)) -> to_remove
+
+tmp <- per_comp %>%
+  filter(event == 'nepal') %>%
+  anti_join(to_remove, by = c("event", "component_id")) %>%
+  mutate(cluster = km.model.nepal$cluster) 
+ 
+tmp %>%
+  group_by(cluster) %>%
+  summarise(urls = sum(diff_urls)) %>%
+  arrange(desc(urls))
+```
+
+```{r}
+ev <- 'nepal'
+for(cl in seq(1:10)) {
+  tmp %>%
+  filter(cluster == cl) %>%
+  left_join(components %>% filter(event == ev), by = "component_id") %>%
+  ungroup() %>%
+  select(tweet_id) %>%
+  write_delim(glue('data_exploration/{ev}_model_cluster_{cl}_tweet_ids.txt'))  
+}
+
+
+
+```
+
+
+
+
+
+```{r}
+url_index
+```
+

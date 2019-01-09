@@ -1,6 +1,10 @@
-import spacy
+import sys
+from tqdm import tqdm
 
-nlp = spacy.load('en_core_web_sm', tagger=False, entity=False, matcher=False)
+"""
+import spacy
+nlp = spacy.load('en', disable=["tagger", "parser", "ner", "textcat"])
+
 
 def hashtag_pipe(doc):
     merged_hashtag = False
@@ -18,11 +22,46 @@ def hashtag_pipe(doc):
         merged_hashtag = False
     return doc
 
-nlp.add_pipe(hashtag_pipe)
+# nlp.add_pipe(hashtag_pipe)
+# nlp.tokenizer.infix_finditer = None
 
-all_tweets = '/home/mquezada/anchor-text-twitter/data/all_tweets.txt'
+"""
 
-with open(all_tweets, 'r') as f:
-	for doc in nlp.pipe(f, batch_size=512, n_threads=8):
-		print(doc)
-		break
+fname = sys.argv[1]
+
+with open(fname, 'r') as f:
+    next(f)
+    for line in tqdm(f, total=27714286):
+        for token in line.split():
+            word = token.lower()
+            if not word.startswith("http://"):
+                print(word, end=" ")
+        print()
+
+
+
+
+"""
+for doc in tqdm(nlp.pipe(f), total=27714286):
+        for token in doc:
+            if not token.is_punct and not token.like_url:
+                print(token.lower_, end=" ")
+
+
+
+    for line in tqdm(f, total=27714286):
+        tokens = nlp(line)
+        for token in tokens:
+            if not token.is_punct and not token.like_url:
+                print(token.lower_, end=" ")
+
+"""
+"""
+        for token in line.split():
+            word = token.lower()
+            if not word.startswith("http://"):
+                print(word, end=" ")
+"""     
+       
+ 
+# g.write(" ".join(token.lower_ for token in doc if not token.is_punct and not token.like_url))

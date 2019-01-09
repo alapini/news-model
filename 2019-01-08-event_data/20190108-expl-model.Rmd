@@ -1,0 +1,82 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+# Cargar librerías y datos
+
+```{r, message=F, comment=F}
+library(tidyverse)
+library(purrr)
+library(tidyr)
+library(broom)
+library(glue)
+```
+
+
+```{r load_data, message=F, comment=F, cache=TRUE}
+tweet_data <- read_delim('event_data.tsv', delim = '\t', skip = 1, col_names = c('event', 'tweet_id', 'retweet_id', 'reply_id', 'tweet_text'), 
+                         col_types = cols(event = col_character(), tweet_id = col_character(), retweet_id = col_character(), reply_id = col_character(), tweet_text = col_character()))
+
+tweet_urls <- read_delim('event_data_urls.tsv', delim = '\t', skip = 1, col_names = c('event', 'tweet_id', 'url'), 
+                         col_types = cols(event = col_character(), tweet_id = col_character(), url = col_character()))
+
+tweet_topic <- read_delim('tweet_topic.tsv', delim='\t', col_names = c('tweet_id', 'topic_id'), col_types= cols(tweet_id = col_character(), topic_id = col_character()))
+```
+
+
+
+
+
+
+
+# M1: cuántas urls distintas comparten los tweets?
+
+```{r}
+tweet_urls %>%
+  group_by(tweet_id) %>%
+  summarise(urls = n()) %>%
+  ggplot() + stat_ecdf(aes(x = urls)) + scale_y_continuous(labels = scales::percent)
+
+tweet_urls %>%
+  group_by(event, tweet_id) %>%
+  summarise(urls = n()) %>%
+  ggplot() + stat_ecdf(aes(x = urls, color = event)) + scale_y_continuous(labels = scales::percent)
+```
+
+
+# M2: cuántos replies y urls hay en los datos?
+
+```{r}
+tweet_data %>%
+  group_by(event) %>%
+  summarise(
+    total = n(),
+    retweets = sum(!is.na(retweet_id)),
+    retweets_frac = sum(!is.na(retweet_id)) / total,
+    replies = sum(!is.na(reply_id)),
+    replies_frac = sum(!is.na(reply_id)) / total,
+  )
+```
+
+
+# M3:
+
+
+
+# M4: numero de topicos por url (pureza de urls)
+
+```{r}
+tweet_urls %>%
+  left_join(tweet_topic, by = "tweet_id") %>%
+  mutate(url = str_trunc(url, 80)) %>% 
+  filter(!is.na(topic_id)) %>%
+  group_by(url, topic_id) %>%
+  summarise(n()) %>%
+  group_by(url) %>%
+  summarise(different_topics = n()) %>%
+  arrange(desc(different_topics))
+```
+
+
