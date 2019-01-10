@@ -23,6 +23,13 @@ tweet_urls <- read_delim('event_data_urls.tsv', delim = '\t', skip = 1, col_name
                          col_types = cols(event = col_character(), tweet_id = col_character(), url = col_character()))
 
 tweet_topic <- read_delim('tweet_topic.tsv', delim='\t', col_names = c('tweet_id', 'topic_id'), col_types= cols(tweet_id = col_character(), topic_id = col_character()))
+
+vectors.sum <- read_delim('model_vectors_sum.tsv', delim = '\t', col_names = c('event', 'component_id', paste("d", seq(300), sep = "")), 
+                          col_types = cols(.default = col_double(), component_id = col_character(), event = col_character()))
+
+vectors.avg <- read_delim('model_vectors_avg.tsv', delim = '\t', col_names = c('event', 'component_id', paste("d", seq(300), sep = "")), 
+                          col_types = cols(.default = col_double(), component_id = col_character(), event = col_character()))
+
 ```
 
 
@@ -60,11 +67,6 @@ tweet_data %>%
   )
 ```
 
-
-# M3:
-
-
-
 # M4: numero de topicos por url (pureza de urls)
 
 ```{r}
@@ -79,4 +81,194 @@ tweet_urls %>%
   arrange(desc(different_topics))
 ```
 
+
+# Exploración básica
+
+```{r summary}
+components %>%
+  group_by(event) %>%
+  summarise(
+    tweets = n(),
+    components = n_distinct(component_id)) -> summ1
+ 
+url_index %>%
+  group_by(event) %>%
+  summarise(`unique urls` = n_distinct(url)) -> summ2
+
+summ1 %>%
+  left_join(summ2, by = "event")
+```
+
+
+# per_comp
+
+```{r}
+(per_comp <- components %>%
+  group_by(event, component_id) %>%
+  summarise(component_size = n()) %>%
+  left_join(
+    url_index %>%
+      group_by(event, component_id) %>%
+      summarise(diff_urls = n_distinct(url)),
+    by = c("event", "component_id")
+  ) %>%
+  left_join(
+    components %>%
+      left_join(tweet_topic, by = "tweet_id") %>%
+      filter(!is.na(topic_id)) %>%
+      group_by(event, component_id) %>%
+      summarise(
+        tweets_labeled = n(),
+        diff_labels = n_distinct(topic_id)),
+    by = c("event", "component_id")
+  ) %>%
+  arrange(desc(component_size)) %>%
+  ungroup()
+ )
+```
+
+
+# urls vs component size
+
+```{r}
+ggplot(per_comp) + 
+  geom_point(aes(y = component_size, x = diff_urls)) + 
+  facet_grid(~ event) + 
+  scale_y_log10() +
+  scale_x_log10() +
+  labs(x = "urls in the component", y = "component size (log10)", title = "Amount of URLs vs Component size")
+```
+
+# tweets labeled vs comp size
+
+```{r}
+ggplot(per_comp %>% filter(!is.na(tweets_labeled))) + 
+  geom_point(aes(y = component_size, x = tweets_labeled)) + 
+  facet_grid(~ event) + 
+  scale_y_log10() + 
+  scale_x_continuous() +
+  labs(x = "amount of tweets labeled in the component", y = "component size (log10)", title = "Tweets labeled vs Component size")
+```
+
+# diff labels vs comp size
+
+```{r}
+ggplot(per_comp %>% filter(!is.na(diff_labels))) + 
+  geom_point(aes(y = component_size, x = diff_labels)) + 
+  facet_grid(~ event) + 
+  scale_y_log10() + 
+  labs(x = "different labels in the component", y = "component size (log10)", title = "DIFFERENT labels vs Component size")
+```
+
+# tweets labeled vs diff labels
+
+```{r}
+ggplot(per_comp %>% filter(!is.na(tweets_labeled))) + 
+  geom_point(aes(x = diff_labels, y = tweets_labeled)) + 
+  scale_y_continuous(breaks = seq(0, 130, 10)) +
+  facet_grid(~ event) +
+  labs(x = "different labels in a component", y = "amount of tweets labeled in the component", title = "amount of tweets labeled vs different labels in a component")
+```
+
+# cdf comp sizes
+
+```{r}
+ggplot(per_comp) +
+  stat_ecdf(aes(x = component_size, color = event)) + 
+  scale_x_log10() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Component size (log10)", y = "percentage", title = "Cumulative density plot for component sizes")
+```
+
+# M3: cuantas componentes tienen 1, 2, ... N etiquetas
+
+```{r}
+per_comp %>%
+  select(event, component_id, diff_labels) %>%
+  filter(!is.na(diff_labels)) %>%
+  ggplot() +
+  stat_ecdf(aes(x = diff_labels, color = event)) +
+  scale_y_continuous(breaks = c(.5, .7, .8, .9, 1), labels = scales::percent)
+```
+
+
+# purity
+```{r}
+Purity <- function(clusters, classes) {
+  sum(apply(table(classes, clusters), 2, max)) / length(clusters)
+}
+```
+
+# Clustering modelo
+
+```{r}
+km <- function(event_name, vectors) {
+  set.seed(1000937)
+  
+  clusters <- vectors %>%
+    filter(event == event_name) %>%
+    select(-event, -component_id) %>%
+    kmeans(centers = 10,  iter.max = 1000, nstart = 25)
+  
+  per_comp %>%
+    filter(event == event_name) %>%
+    mutate(cluster_id = clusters$cluster) %>%
+    select(component_id, cluster_id)
+}
+
+y_pred <- function(event_name, comp_cluster) {
+  ## y_pred
+  components %>% 
+    filter(event == event_name) %>%
+    left_join(tweet_topic, by = "tweet_id") %>%
+    left_join(comp_cluster, by = "component_id") %>%
+    filter(!is.na(topic_id))
+}
+
+```
+
+## Libya (sum)
+
+```{r, cache = T}
+event_name <- "libya"
+
+comp_cluster <- km(event_name, vectors.sum)
+tweet_cluster <- y_pred(event_name, comp_cluster)
+Purity(tweet_cluster$cluster_id, tweet_cluster$topic_id)
+```
+
+## Libya (avg)
+
+```{r, cache = T}
+event_name <- "libya"
+
+comp_cluster <- km(event_name, vectors.avg)
+tweet_cluster <- y_pred(event_name, comp_cluster)
+Purity(tweet_cluster$cluster_id, tweet_cluster$topic_id)
+```
+
+
+```{r, cache = T}
+per_comp %>%
+  filter(event == ev) %>%
+  mutate(cluster = km.model.libya$cluster) %>%
+  filter(!is.na(tweets_labeled)) %>%
+  group_by(cluster) %>%
+  summarise(
+    `tweets labeled` = sum(tweets_labeled),
+    `different labels` = sum(diff_labels),
+    `different urls` = sum(diff_urls),
+    `total tweets` = sum(component_size)
+  ) -> result
+
+(ggplot(result) + 
+  geom_point(aes(x = `different labels`, y = `different urls`)) +
+  labs(title = "different URLs in each cluster vs different labels in each cluster"))
+
+result %>% arrange(desc(`different labels`))
+``` 
+
+```{r}
+Purity(results.model.libya$cluster, results.model.libya$topic_id)
+```
 
